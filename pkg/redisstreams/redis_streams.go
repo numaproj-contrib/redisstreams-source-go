@@ -30,10 +30,10 @@ type redisStreamsSource struct {
 }
 
 // how to designate to Redis where the read in the stream is starting from (beginning or just new messages)
-const ReadFromEarliest = "0-0"
-const ReadFromLatest = "$"
+const readFromEarliest = "0-0"
+const readFromLatest = "$"
 
-const PendingNotAvailable = int64(math.MinInt64)
+const pendingNotAvailable = int64(math.MinInt64)
 
 func New(c *config.RedisStreamsSourceConfig, logger *zap.SugaredLogger) (*redisStreamsSource, error) {
 	redisClient, err := newRedisClient(c)
@@ -41,12 +41,14 @@ func New(c *config.RedisStreamsSourceConfig, logger *zap.SugaredLogger) (*redisS
 		return nil, err
 	}
 
-	replica := os.Getenv("NUMAFLOW_REPLICA") // todo: check this was set correctly
+	replica := os.Getenv("NUMAFLOW_REPLICA")
 	if replica == "" {
 		return nil, fmt.Errorf("NUMAFLOW_REPLICA environment variable not set: can't set Consumer name")
 	}
 
 	consumerName := fmt.Sprintf("%s-%s", c.ConsumerGroup, replica)
+	// The ConsumerGroup name identifies the entire group of clients (pods within the Vertex) that are subscribing
+	// The Consumer name is the name of just this Pod (which it will maintain over restarts)
 	logger.Infof("Consumer group: %q, Consumer name: %q", c.ConsumerGroup, consumerName)
 
 	redisStreamsSource := &redisStreamsSource{
@@ -86,8 +88,10 @@ func newRedisClient(c *config.RedisStreamsSourceConfig) (*redisClient, error) {
 		if urls != "" {
 			opts.Addrs = strings.Split(urls, ",")
 		}
-		sentinelPassword, _ := volumeReader.GetSecretFromVolume(c.SentinelPassword)
-		opts.SentinelPassword = os.Getenv(sentinelPassword)
+		if c.SentinelPassword != nil {
+			sentinelPassword, _ := volumeReader.GetSecretFromVolume(c.SentinelPassword)
+			opts.SentinelPassword = os.Getenv(sentinelPassword)
+		}
 	} else {
 		urls := c.URL
 		if urls != "" {
@@ -100,9 +104,9 @@ func newRedisClient(c *config.RedisStreamsSourceConfig) (*redisClient, error) {
 
 func (rsSource *redisStreamsSource) createConsumerGroup(ctx context.Context, c *config.RedisStreamsSourceConfig) error {
 	// user can configure to read stream either from the beginning or from the most recent messages
-	readFrom := ReadFromLatest
+	readFrom := readFromLatest
 	if c.ReadFromBeginning {
-		readFrom = ReadFromEarliest
+		readFrom = readFromEarliest
 	}
 	rsSource.log.Infof("Creating Redis Stream group %q on Stream %q (readFrom=%v)", rsSource.group, rsSource.stream, readFrom)
 	err := rsSource.redisClient.CreateStreamGroup(ctx, rsSource.stream, rsSource.group, readFrom)
@@ -125,7 +129,7 @@ func (rsSource *redisStreamsSource) Pending(ctx context.Context) int64 {
 	groups, err := result.Result()
 	if err != nil {
 		rsSource.log.Errorf("error calling XInfoGroups: %v", err)
-		return PendingNotAvailable
+		return pendingNotAvailable
 	}
 	// find our ConsumerGroup
 	for _, group := range groups {
@@ -134,7 +138,7 @@ func (rsSource *redisStreamsSource) Pending(ctx context.Context) int64 {
 		}
 	}
 	rsSource.log.Errorf("ConsumerGroup %q not found in XInfoGroups result %+v", rsSource.group, groups)
-	return PendingNotAvailable
+	return pendingNotAvailable
 
 }
 
@@ -146,6 +150,7 @@ func (rsSource *redisStreamsSource) Read(ctx context.Context, readRequest source
 	finalTime := functionStartTime.Add(readRequest.TimeOut())
 	msgCount := int(readRequest.Count())
 
+	// Logic for Pod just starting/restarting:
 	// if there are messages previously delivered to us that we didn't acknowledge, repeatedly check for that until there are no
 	// messages returned, or until we reach timeout
 	// "0-0" means messages previously delivered to us that we didn't acknowledge
@@ -170,10 +175,7 @@ func (rsSource *redisStreamsSource) Read(ctx context.Context, readRequest source
 	if !rsSource.checkBackLog {
 		remainingTime := time.Until(finalTime)
 		if int64(remainingTime) < 0 {
-			rsSource.log.Infof("deletethis: checkBackLog=false; returning: out of time, finalTime=%+v", finalTime)
 			return
-		} else {
-			rsSource.log.Infof("deletethis: checkBackLog=false; about to call processXReadResult(), finalTime=%+v, remainingTime=%+v", finalTime, remainingTime)
 		}
 
 		// this call will block until either the msgCount has been fulfilled or the remainingTime has elapsed
@@ -222,7 +224,7 @@ func (rsSource *redisStreamsSource) processXReadResult(ctx context.Context, star
 	xstreams, err := result.Result()
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, redis.Nil) {
-			rsSource.log.Debugf("redis.Nil/context cancelled, startIndex=%q, err=%v", startIndex, err)
+			rsSource.log.Debugf("redis.Nil/context cancelled, startIndex=%q, err=%v", startIndex, err) // this can happen if there's no data
 			return nil, nil
 		}
 		return xstreams, err

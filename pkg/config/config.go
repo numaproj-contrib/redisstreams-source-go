@@ -32,7 +32,7 @@ type RedisStreamsSourceConfig struct {
 	TLS *TLS `yaml:"tls" protobuf:"bytes,10,opt,name=tls"`
 }
 
-// TLS defines the TLS configuration for the Nats client.
+// TLS defines the TLS configuration for the Redis Streams client
 type TLS struct {
 	// +optional
 	InsecureSkipVerify bool `yaml:"insecureSkipVerify,omitempty" protobuf:"bytes,1,opt,name=insecureSkipVerify"`
