@@ -1,6 +1,6 @@
 .PHONY: test
 test:
-	docker run -p 6379:6379 -e REDIS_ARGS="--health-interval 10s --health-timeout 5s --health-retries 5" --name redis-server --rm redis:6.2 &
+	docker run -p 6379:6379 -e REDIS_ARGS="--health-interval 10s --health-timeout 5s --health-retries 5" --name redis-server --rm redis &
 	go test ./... -race -short -v -timeout 60s
 	docker kill redis-server
 
