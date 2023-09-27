@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"github.com/numaproj-contrib/redisstreams-source-go/pkg/config"
 	"github.com/numaproj-contrib/redisstreams-source-go/pkg/utils"
 	sourcesdk "github.com/numaproj/numaflow-go/pkg/sourcer"
-	"github.com/numaproj/numaflow/pkg/isb"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
@@ -32,6 +32,8 @@ type redisStreamsSource struct {
 // how to designate to Redis where the read in the stream is starting from (beginning or just new messages)
 const ReadFromEarliest = "0-0"
 const ReadFromLatest = "$"
+
+const PendingNotAvailable = int64(math.MinInt64)
 
 func New(c *config.RedisStreamsSourceConfig, logger *zap.SugaredLogger) (*redisStreamsSource, error) {
 	redisClient, err := newRedisClient(c)
@@ -123,7 +125,7 @@ func (rsSource *redisStreamsSource) Pending(ctx context.Context) int64 {
 	groups, err := result.Result()
 	if err != nil {
 		rsSource.log.Errorf("error calling XInfoGroups: %v", err)
-		return isb.PendingNotAvailable
+		return PendingNotAvailable
 	}
 	// find our ConsumerGroup
 	for _, group := range groups {
@@ -132,7 +134,7 @@ func (rsSource *redisStreamsSource) Pending(ctx context.Context) int64 {
 		}
 	}
 	rsSource.log.Errorf("ConsumerGroup %q not found in XInfoGroups result %+v", rsSource.group, groups)
-	return isb.PendingNotAvailable
+	return PendingNotAvailable
 
 }
 

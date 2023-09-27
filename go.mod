@@ -3,7 +3,6 @@ module github.com/numaproj-contrib/redisstreams-source-go
 go 1.20
 
 require (
-	github.com/numaproj/numaflow v0.10.0
 	github.com/numaproj/numaflow-go v0.5.1-0.20230912211616-62600351d97f
 	github.com/redis/go-redis/v9 v9.1.0
 	github.com/stretchr/testify v1.8.4
@@ -24,6 +23,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	go.uber.org/goleak v1.2.1 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/net v0.13.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
