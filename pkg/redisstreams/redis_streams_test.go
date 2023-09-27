@@ -33,6 +33,8 @@ var (
 		"test-msg-1": struct{}{},
 		"test-msg-2": struct{}{},
 	}
+
+	defaultReadTimeout = 5 * time.Second
 )
 
 func init() {
@@ -83,12 +85,12 @@ func Test_Read_MultiConsumer(t *testing.T) {
 	writeTestMessages(t, publishClient, []string{"1692632086370-0", "1692632086371-0", "1692632086372-0"}, streamName)
 
 	// Source reads the 1 message but doesn't Ack
-	msgs := read(source1, 2, 5*time.Second)
+	msgs := read(source1, 2, defaultReadTimeout)
 	assert.Equal(t, 2, len(msgs))
 	checkMessage(t, msgs[0], multipleKeysValuesJson, "1692632086370-0", keysSet)
 	checkMessage(t, msgs[1], multipleKeysValuesJson, "1692632086371-0", keysSet)
 
-	msgs = read(source2, 2, 5*time.Second)
+	msgs = read(source2, 2, defaultReadTimeout)
 	assert.Equal(t, 1, len(msgs))
 	checkMessage(t, msgs[0], multipleKeysValuesJson, "1692632086372-0", keysSet)
 
@@ -144,6 +146,29 @@ func Test_Read_WithBacklog(t *testing.T) {
 	assert.NoError(t, err)
 	msgs = readDefault(source)
 	assert.Equal(t, 0, len(msgs))
+
+	// this time create a situation in which the number of Backlog messages can't be fully read in 1 call to Read()
+	writeTestMessages(t, publishClient, []string{"1692632086373-0", "1692632086374-0", "1692632086375-0"}, streamName)
+	msgs = readDefault(source)
+	assert.Equal(t, 3, len(msgs))
+	// no Ack
+
+	// imitate the Pod getting restarted again
+	source, err = New(config, utils.NewLogger())
+	assert.NoError(t, err)
+	msgs = read(source, 2, defaultReadTimeout) // just read 2 messages instead of all 3
+	assert.Equal(t, 2, len(msgs))
+	offset = sourcesdk.NewOffset([]byte("1692632086373-0"), "0")
+	source.Ack(context.Background(), &ackRequest{offsets: []sourcesdk.Offset{offset}})
+	offset = sourcesdk.NewOffset([]byte("1692632086374-0"), "0")
+	source.Ack(context.Background(), &ackRequest{offsets: []sourcesdk.Offset{offset}})
+	msgs = read(source, 2, defaultReadTimeout) // final message read
+	assert.Equal(t, 1, len(msgs))
+	offset = sourcesdk.NewOffset([]byte("1692632086375-0"), "0")
+	source.Ack(context.Background(), &ackRequest{offsets: []sourcesdk.Offset{offset}})
+	msgs = read(source, 1, defaultReadTimeout)
+	assert.Equal(t, 0, len(msgs))
+
 }
 
 // returns the number of messages read in
@@ -155,7 +180,7 @@ func read(source *redisStreamsSource, count uint64, duration time.Duration) []so
 }
 
 func readDefault(source *redisStreamsSource) []sourcesdk.Message {
-	return read(source, 10, 5*time.Second)
+	return read(source, 10, defaultReadTimeout)
 }
 
 func checkMessage(t *testing.T, msg sourcesdk.Message, payloadValue string, offset string, keysSet map[string]struct{}) {
