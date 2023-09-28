@@ -10,7 +10,6 @@ test:
 build: 
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -o ./dist/redisstreams-source main.go
 
-# todo: don't hardcode image tag here - instead use Git tag
 .PHONY: image
 image: build
 	docker build -t quay.io/numaio/numaflow-source/redisstreams-source-go:$(VERSION) --target redisstreams-source .
