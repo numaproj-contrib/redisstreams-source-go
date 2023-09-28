@@ -80,6 +80,7 @@ func Test_Read_MultiConsumer(t *testing.T) {
 
 	os.Setenv("NUMAFLOW_REPLICA", "2")
 	source2, err := New(config, utils.NewLogger())
+	assert.NoError(t, err)
 
 	publishClient := NewRedisClient(redisOptions)
 	writeTestMessages(t, publishClient, []string{"1692632086370-0", "1692632086371-0", "1692632086372-0"}, streamName)
