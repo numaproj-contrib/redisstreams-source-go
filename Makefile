@@ -1,3 +1,5 @@
+VERSION?=latest
+
 .PHONY: test
 test:
 	docker run -p 6379:6379 -e REDIS_ARGS="--health-interval 10s --health-timeout 5s --health-retries 5" --name redis-server --rm redis &
@@ -11,7 +13,7 @@ build:
 # todo: don't hardcode image tag here - instead use Git tag
 .PHONY: image
 image: build
-	docker build -t "quay.io/numaio/numaflow-source/redisstreams-source-go:v0.1.0" --target redisstreams-source .
+	docker build -t quay.io/numaio/numaflow-source/redisstreams-source-go:$(VERSION) --target redisstreams-source .
 
 $(GOPATH)/bin/golangci-lint:
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b `go env GOPATH`/bin v1.54.1
