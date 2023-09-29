@@ -1,0 +1,39 @@
+apiVersion: numaflow.numaproj.io/v1alpha1
+kind: Pipeline
+metadata:
+  name: redis-source-e2e
+spec:
+  vertices:
+    - name: in
+      containerTemplate:
+        env:
+          - name: NUMAFLOW_DEBUG
+            value: "false" # set this to true if you want debug-level logging in your Pods
+      scale:
+        min: 2 # how many pods, minimum (pods are autoscaled)
+      volumes:
+        - name: my-config-mount
+          configMap:
+            name: redisstreams-config-map # your configuration is defined in here
+      source:
+        udsource:
+          container:
+            image: quay.io/numaio/numaflow-source/redisstreams-source-go:v0.1.0 # or replace with another version tag
+            volumeMounts:
+              - name: my-config-mount
+                mountPath: /etc/config
+
+    - name: p1
+      udf:
+        builtin:
+          name: cat
+    - name: out
+      sink:
+        udsink:
+          container:
+            image: quay.io/numaio/numaflow-sink/redis-e2e-test-sink:v0.5.0
+  edges:
+    - from: in
+      to: p1
+    - from: p1
+      to: out

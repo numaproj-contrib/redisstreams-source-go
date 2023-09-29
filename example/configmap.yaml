@@ -1,0 +1,10 @@
+apiVersion: v1
+data:
+  config.yaml: |
+    url: redis:6379
+    stream: test-stream
+    consumerGroup: my-group
+    readFromBeginning: false
+kind: ConfigMap
+metadata:
+  name: redisstreams-config-map
