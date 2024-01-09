@@ -12,9 +12,10 @@ import (
 	sourcesdk "github.com/numaproj/numaflow-go/pkg/sourcer"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/redis/go-redis/v9"
+
 	"github.com/numaproj-contrib/redisstreams-source-go/pkg/config"
 	"github.com/numaproj-contrib/redisstreams-source-go/pkg/utils"
-	"github.com/redis/go-redis/v9"
 )
 
 var (
@@ -132,14 +133,14 @@ func Test_Read_WithBacklog(t *testing.T) {
 	msgs = readDefault(source)
 	assert.Equal(t, 1, len(msgs))
 	// ack
-	offset := sourcesdk.NewOffset([]byte("1692632086370-0"), "0")
+	offset := sourcesdk.NewOffset([]byte("1692632086370-0"), 0)
 	source.Ack(context.Background(), &ackRequest{offsets: []sourcesdk.Offset{offset}})
 
 	msgs = readDefault(source)
 	assert.Equal(t, 2, len(msgs))
-	offset = sourcesdk.NewOffset([]byte("1692632086371-0"), "0")
+	offset = sourcesdk.NewOffset([]byte("1692632086371-0"), 0)
 	source.Ack(context.Background(), &ackRequest{offsets: []sourcesdk.Offset{offset}})
-	offset = sourcesdk.NewOffset([]byte("1692632086372-0"), "0")
+	offset = sourcesdk.NewOffset([]byte("1692632086372-0"), 0)
 	source.Ack(context.Background(), &ackRequest{offsets: []sourcesdk.Offset{offset}})
 
 	// imitate the Pod getting restarted again: this time there should be no messages to read
@@ -159,13 +160,13 @@ func Test_Read_WithBacklog(t *testing.T) {
 	assert.NoError(t, err)
 	msgs = read(source, 2, defaultReadTimeout) // just read 2 messages instead of all 3
 	assert.Equal(t, 2, len(msgs))
-	offset = sourcesdk.NewOffset([]byte("1692632086373-0"), "0")
+	offset = sourcesdk.NewOffset([]byte("1692632086373-0"), 0)
 	source.Ack(context.Background(), &ackRequest{offsets: []sourcesdk.Offset{offset}})
-	offset = sourcesdk.NewOffset([]byte("1692632086374-0"), "0")
+	offset = sourcesdk.NewOffset([]byte("1692632086374-0"), 0)
 	source.Ack(context.Background(), &ackRequest{offsets: []sourcesdk.Offset{offset}})
 	msgs = read(source, 2, defaultReadTimeout) // final message read
 	assert.Equal(t, 1, len(msgs))
-	offset = sourcesdk.NewOffset([]byte("1692632086375-0"), "0")
+	offset = sourcesdk.NewOffset([]byte("1692632086375-0"), 0)
 	source.Ack(context.Background(), &ackRequest{offsets: []sourcesdk.Offset{offset}})
 	msgs = read(source, 1, defaultReadTimeout)
 	assert.Equal(t, 0, len(msgs))
