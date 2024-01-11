@@ -3,7 +3,7 @@ module github.com/numaproj-contrib/redisstreams-source-go
 go 1.20
 
 require (
-	github.com/numaproj/numaflow-go v0.5.1-0.20230912211616-62600351d97f
+	github.com/numaproj/numaflow-go v0.6.0
 	github.com/redis/go-redis/v9 v9.1.0
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.25.0

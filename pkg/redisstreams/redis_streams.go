@@ -11,11 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/numaproj-contrib/redisstreams-source-go/pkg/config"
-	"github.com/numaproj-contrib/redisstreams-source-go/pkg/utils"
 	sourcesdk "github.com/numaproj/numaflow-go/pkg/sourcer"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
+
+	"github.com/numaproj-contrib/redisstreams-source-go/pkg/config"
+	"github.com/numaproj-contrib/redisstreams-source-go/pkg/utils"
 )
 
 // redisStreamsSource is the struct responsible for processing an incoming RedisStream as part of a ConsumerGroup
@@ -202,6 +203,10 @@ func (rsSource *redisStreamsSource) Ack(ctx context.Context, request sourcesdk.A
 
 }
 
+func (rsSource *redisStreamsSource) Partitions(ctx context.Context) []int32 {
+	return sourcesdk.DefaultPartitions()
+}
+
 func (rsSource *redisStreamsSource) Close() error {
 	rsSource.log.Info("Shutting down redis streams source server...")
 	rsSource.log.Info("Redis streams source server shutdown")
@@ -269,7 +274,7 @@ func (rsSource *redisStreamsSource) xStreamToMessages(xstream redis.XStream) ([]
 }
 
 func produceMsg(inMsg redis.XMessage) (*sourcesdk.Message, error) {
-	var readOffset = sourcesdk.NewOffset([]byte(inMsg.ID), "0")
+	var readOffset = sourcesdk.NewOffsetWithDefaultPartitionId([]byte(inMsg.ID))
 
 	jsonSerialized, err := json.Marshal(inMsg.Values)
 	if err != nil {
