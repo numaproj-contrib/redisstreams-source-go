@@ -274,7 +274,7 @@ func (rsSource *redisStreamsSource) xStreamToMessages(xstream redis.XStream) ([]
 }
 
 func produceMsg(inMsg redis.XMessage) (*sourcesdk.Message, error) {
-	var readOffset = sourcesdk.NewOffset([]byte(inMsg.ID), 0)
+	var readOffset = sourcesdk.NewOffsetWithDefaultPartitionId([]byte(inMsg.ID))
 
 	jsonSerialized, err := json.Marshal(inMsg.Values)
 	if err != nil {
